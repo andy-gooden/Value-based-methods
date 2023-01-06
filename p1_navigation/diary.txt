@@ -1,0 +1,8 @@
+# create virtualenv called "p1_navigation" based on python 3.6.15
+pyenv virtualenv 3.6.15 p1_navigation
+# create .python-version file, so that this virtualenv will activate automatically
+cat 3.6.15/envs/p1_navigation >> .python-version
+
+add DQN as kernel to jupyter:
+python -m ipykernel install --user --name dqn --display-name "dqn"
+
