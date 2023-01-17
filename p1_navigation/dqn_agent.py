@@ -63,7 +63,6 @@ class Agent():
 
         if done:
             self.eps = max(self.eps_end, self.eps_decay*self.eps)
-            print("decaying eps to {}".format(self.eps))
             
     def get_action(self, state):
         """Returns actions for given state as per current policy.
@@ -72,14 +71,13 @@ class Agent():
         ======
             state (array_like): current state
         """
-        state = torch.from_numpy(state).float().unsqueeze(0).to(device)
-        self.dqn.eval()
-        with torch.no_grad():
-            action_values = self.dqn(state)
-        self.dqn.train()
-
         # epsilon-greedy action selection
         if random.random() > self.eps:
+            state = torch.from_numpy(state).float().unsqueeze(0).to(device)
+            self.dqn.eval()
+            with torch.no_grad():
+                action_values = self.dqn(state)
+            self.dqn.train()
             return np.argmax(action_values.cpu().data.numpy())
         else:
             return random.choice(np.arange(self.action_size))
