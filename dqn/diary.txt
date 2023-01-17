@@ -1,0 +1,9 @@
+pip install --upgrade pip
+pip install torch==1.10.2
+pip install jupyter==1.0.0
+pip install matplotlib==3.3.4
+pip install numpy==1.19.5
+pip install gym==0.9.6
+pip install gym[box2d]
+pip install Box2D
+pip install pyglet==1.5.11
