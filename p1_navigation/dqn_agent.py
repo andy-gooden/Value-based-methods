@@ -12,15 +12,21 @@ BUFFER_SIZE = int(1e5)  # replay buffer size
 BATCH_SIZE = 64         # minibatch size
 GAMMA = 0.99            # discount factor
 TAU = 1e-3              # for soft update of target parameters
-LR = 5e-3               # learning rate 
-UPDATE_EVERY = 4        # how often to update the network
+LR = 5e-5               # learning rate 
+LEARN_EVERY = 16        # how often to learn and update weights
+UPDATE_TARGET_EVERY = 1 # how often to update target network w soft update
+EPS_START = 1.0
+EPS_END = 0.01
+EPS_DECAY = 0.995
+MODEL_LAYER1_SIZE = 256
+MODEL_LAYER2_SIZE = 256
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 class Agent():
     """Interacts with and learns from the environment."""
 
-    def __init__(self, state_size, action_size, seed, eps_start=1.0, eps_end=0.01, eps_decay=0.995):
+    def __init__(self, state_size, action_size, seed, eps_start=EPS_START, eps_end=EPS_END, eps_decay=EPS_DECAY):
         """Initialize an Agent object.
         
         Params
@@ -38,12 +44,13 @@ class Agent():
         self.eps = eps_start
         self.eps_end = eps_end
         self.eps_decay = eps_decay
-        self.t_step = 0                  # Initialize time step (for updating every UPDATE_EVERY steps)
+        self.t_step = 0                  # Initialize time step (for updating every LEARN_EVERY steps)
+        self.l_step = 0                  # init learning step (for updating target weights UPDATE_TARGET_EVERY learn steps)
 
         # Q-Network
-        self.dqn = QNetwork(state_size, action_size, seed).to(device)
-        self.qnetwork_target = QNetwork(state_size, action_size, seed).to(device)
-        self.optimizer = optim.Adam(self.dqn.parameters(), lr=LR)
+        self.dqn_current = QNetwork(state_size, action_size, seed, MODEL_LAYER1_SIZE, MODEL_LAYER2_SIZE).to(device)
+        self.optimizer = optim.Adam(self.dqn_current.parameters(), lr=LR)
+        self.dqn_target = QNetwork(state_size, action_size, seed, MODEL_LAYER1_SIZE, MODEL_LAYER2_SIZE).to(device)
 
         # Replay memory
         self.memory = ReplayBuffer(action_size, BUFFER_SIZE, BATCH_SIZE, seed)
@@ -53,8 +60,8 @@ class Agent():
         # Save experience in replay memory
         self.memory.add(state, action, reward, next_state, done)
         
-        # Learn every UPDATE_EVERY time steps.
-        self.t_step = (self.t_step + 1) % UPDATE_EVERY
+        # Learn every LEARN_EVERY time steps.
+        self.t_step = (self.t_step + 1) % LEARN_EVERY
         if self.t_step == 0:
             # If enough samples are available in memory, get random subset and learn
             if len(self.memory) > BATCH_SIZE:
@@ -74,10 +81,10 @@ class Agent():
         # epsilon-greedy action selection
         if random.random() > self.eps:
             state = torch.from_numpy(state).float().unsqueeze(0).to(device)
-            self.dqn.eval()
+            self.dqn_current.eval()
             with torch.no_grad():
-                action_values = self.dqn(state)
-            self.dqn.train()
+                action_values = self.dqn_current(state)
+            self.dqn_current.train()
             return np.argmax(action_values.cpu().data.numpy())
         else:
             return random.choice(np.arange(self.action_size))
@@ -88,7 +95,7 @@ class Agent():
         ======
             filename (string): name of file to store policy info
         """
-        self.dqn.save_to_file(filename)
+        self.dqn_current.save_to_file(filename)
         
         
     def load_policy(self, filename):
@@ -97,7 +104,7 @@ class Agent():
         ======
             filename (string): name of file which stores policy info
         """
-        self.dqn.load_from_file(filename)
+        self.dqn_current.load_from_file(filename)
 
     def _learn(self, experiences, gamma):
         """Update value parameters using given batch of experience tuples.
@@ -109,12 +116,11 @@ class Agent():
         states, actions, rewards, next_states, dones = experiences
 
         # Get max predicted Q values (for next states) from target model
-        Q_targets_next = self.qnetwork_target(next_states).detach().max(1)[0].unsqueeze(1)
+        Q_targets_next = self.dqn_target(next_states).detach().max(1)[0].unsqueeze(1)
         # Compute Q targets for current states 
         Q_targets = rewards + (gamma * Q_targets_next * (1 - dones))
-
-        # Get expected Q values from local model
-        Q_expected = self.dqn(states).gather(1, actions)
+        # Get expected Q values from current model
+        Q_expected = self.dqn_current(states).gather(1, actions)
 
         # Compute loss
         loss = F.mse_loss(Q_expected, Q_targets)
@@ -123,8 +129,10 @@ class Agent():
         loss.backward()
         self.optimizer.step()
 
-        # ------------------- update target network ------------------- #
-        self.soft_update(self.dqn, self.qnetwork_target, TAU)                     
+        # update target network
+        self.l_step = (self.l_step + 1) % UPDATE_TARGET_EVERY
+        if self.l_step == 0:
+            self.soft_update(self.dqn_current, self.dqn_target, TAU)                     
 
     def soft_update(self, local_model, target_model, tau):
         """Soft update model parameters.
