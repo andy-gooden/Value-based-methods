@@ -8,13 +8,13 @@ import torch
 import torch.nn.functional as F
 import torch.optim as optim
 
-BUFFER_SIZE = int(1e5)  # replay buffer size
-BATCH_SIZE = 64         # minibatch size
-GAMMA = 0.99            # discount factor
-TAU = 1e-3              # for soft update of target parameters
-LR = 5e-5               # learning rate 
-LEARN_EVERY = 16        # how often to learn and update weights
-UPDATE_TARGET_EVERY = 1 # how often to update target network w soft update
+BUFFER_SIZE = int(1e5)   # replay buffer size
+BATCH_SIZE = 64          # minibatch size
+GAMMA = 0.99             # discount factor
+TAU = 1.0                # for soft update of target parameters
+LR = 5e-5                # learning rate 
+LEARN_EVERY = 4          # how often to learn and update weights
+UPDATE_TARGET_EVERY = 40 # how often to update target network w soft update
 EPS_START = 1.0
 EPS_END = 0.01
 EPS_DECAY = 0.995
