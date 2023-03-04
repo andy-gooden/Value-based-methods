@@ -53,3 +53,6 @@ The three main files are:
 3.  `Navigation.ipynb` - the Jupyter Notebook that runs it all
 
 Run `Navigation.ipynb` to train your own agent!  
+
+### Attributions
+This code was based off starter code provided in the [Udacity Value Based Methods repo](https://github.com/udacity/Value-based-methods/tree/main/dqn/solution)
